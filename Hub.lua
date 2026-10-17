@@ -1,7 +1,7 @@
 print("@Dimitrof04 Hub")
 print(string.format("Game id : %i", game.GameId))
 print(string.format("Player id : %i ", game.Players.LocalPlayer.UserId))
-print('loadstring(game:HttpGet("https://github.com/Dimitrof04/Dimitrof04HubV2/main/Hub.lua"))()')
+print('loadstring(game:HttpGet("https://raw.githubusercontent.com/Dimitrof04/Dimitrof04HubV2/main/Hub.lua"))()')
 -- [Services]
 local HttpService = game:GetService("HttpService")
 local Players = game:GetService("Players")
@@ -11,6 +11,8 @@ local TweenService = game:GetService("TweenService")
 local Workspace = game:GetService("Workspace")
 local LocalPlayer = Players.LocalPlayer
 local Camera = workspace.CurrentCamera
+
+local Name = "Dimitrof04"
 
 -- [Gui Class]
 local function Guiclass()
@@ -139,6 +141,7 @@ local Gui = Guiclass()
 local Global = {
 	bools = {
 		Speed = false,
+		JumpForce = false,
 		InfJump = false,
 		NoClip = false,
 		Fly = false,
@@ -147,17 +150,24 @@ local Global = {
 		Aimbot = false,
 		AutoSpin = false,
 		ExpansiveHitbox = false,
-		Espectre = false
+		Espectre = false,
+		Fling = false,
+		CameraFov = false,
+		CrossHair = false,
+		PauseScript = false,
 	},
 	values = {
 		Speed = 16,
+		JumpForce = 50,
 		FlySpeed = 50,
 		TweenSpeed = 300,
 		AutoSpinSpeed = 50,
 		BackTransparancy = 0.5,
 		Fov = 90,
+		CameraFov = 70,
 		AimSmoothness = 0.2,
-		HitboxSize = 10
+		HitboxSize = 10,
+		Savedatadelay = 90
 	},
 	DragData = {
 		dragStartMini = nil,
@@ -219,8 +229,8 @@ local function CreateScrengui()
 	local Screngui = Instance.new("ScreenGui",game.Players.LocalPlayer.PlayerGui)
 	Screngui.IgnoreGuiInset = true
 	Screngui.ResetOnSpawn = false
-	Screngui.Name = "Dimitrof04ScriptRenew"
-	Screngui.DisplayOrder = 99
+	Screngui.Name = Name
+	Screngui.DisplayOrder = 9
 	
 	local mainbtn = Instance.new("ImageButton",Screngui)
 	mainbtn.Name = "MainButton"
@@ -281,6 +291,12 @@ local function CreateScrengui()
 		end
 
 		local function CreateButtonInput(text, stateKey)
+			if not text then return end
+			
+			if not stateKey then
+				stateKey = text
+			end
+			
 			local btn = Gui.CreateUiTextButton(text .. " : ", Page, UDim2.new(0,0,0,0), UDim2.new(0.8, 0,0, 45))
 			btn.Font = Enum.Font.GothamMedium
 
@@ -341,6 +357,12 @@ local function CreateScrengui()
 		end
 
 		local function CreateSlider(labelText, min, max, default, stateKey)
+			if not labelText then return end
+
+			if not stateKey then
+				stateKey = labelText
+			end
+			
 			Global.values[stateKey] = default
 
 			local frame = Gui.CreateUiFrame(Page, UDim2.new(0,0,0,0), UDim2.new(0.95, 0,0, 50))
@@ -353,13 +375,13 @@ local function CreateScrengui()
 			bar.BackgroundColor3 = Color3.fromRGB(0, 0, 0)
 			bar.BackgroundTransparency = 0
 
-			local barCorner = Gui.CreateUiBorder(bar)
+			local barCorner = Gui.CreateUiBorder(bar, UDim.new(1,0))
 
 			local fill = Gui.CreateUiFrame(bar, UDim2.new(0, 0, 0, 0), UDim2.new((default-min)/(max-min), 0, 1, 0))
 			fill.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
 			fill.BackgroundTransparency = 0
 
-			local fillCorner = Gui.CreateUiBorder(fill)
+			local fillCorner = Gui.CreateUiBorder(fill, UDim.new(1,0))
 
 			local dragging = false
 
@@ -631,13 +653,18 @@ local function main()
 	Hub.Actions.OpenPage("Local")
 	
 	localPlayerPage.Create_Description("Speed")
-	localPlayerPage.Create_ButtonInput("Speed", "Speed")
-	localPlayerPage.Create_Slider("Speed", 0, 300, 16, "Speed")
-	localPlayerPage.Create_ButtonInput("Pulo Infinito", "InfJump")
-	localPlayerPage.Create_ButtonInput("NoClip", "NoClip")
+	localPlayerPage.Create_ButtonInput("Speed")
+	localPlayerPage.Create_Slider("Speed", 0, 400, 16, "Speed")
+	localPlayerPage.Create_Description("Jump")
+	localPlayerPage.Create_ButtonInput("JumpForce")
+	localPlayerPage.Create_Slider("JumpForce", 50, 500, 55)
+	localPlayerPage.Create_ButtonInput("Infinite Jump", "InfJump")
+	localPlayerPage.Create_ButtonInput("NoClip")
 	localPlayerPage.Create_Description("Fly")
-	localPlayerPage.Create_ButtonInput("Fly", "Fly")
+	localPlayerPage.Create_ButtonInput("Fly")
 	localPlayerPage.Create_Slider("Fly Speed", 0, 500, 50, "FlySpeed")
+	localPlayerPage.Create_ButtonInput("CameraFov")
+	localPlayerPage.Create_Slider("CameraFov", 30, 120, 70, "CameraFov")
 	
 	local Player_name = PlayerPage.Create_InputText("Player Name")
 	local TPListOpen = PlayerPage.Create_OneShotbtn("Open Player List")
@@ -645,10 +672,14 @@ local function main()
 	local Tpbtn = PlayerPage.Create_OneShotbtn("Teleport")
 	PlayerPage.Create_Slider("TweenSpeed", 100, 1000, 300, "TweenSpeed")
 	PlayerPage.Create_ButtonInput("TweenTp", "TweenTP")
+	--PlayerPage.Create_ButtonInput("Fling", "Fling")
 	local EspectrebtnPlayerPage = PlayerPage.Create_ButtonInput("Espectador", "Espectre")
 	
-	FpsPage.Create_Description("Aimbot")
-	FpsPage.Create_ButtonInput("Aimbot", "Aimbot")
+	FpsPage.Create_Description("Aim")
+	FpsPage.Create_ButtonInput("CrossHair")
+	FpsPage.Create_Description("CrossHair and Fov Color")
+	local CrossHairColor = FpsPage.Create_InputText("0,155,0")
+	FpsPage.Create_ButtonInput("Aimbot")
 	FpsPage.Create_Slider("Fov", 30, 500, 70, "Fov")
 	FpsPage.Create_Slider("Smoothness", 10, 70, 20, "AimSmoothness")
 	FpsPage.Create_ButtonInput("Esp", "Esp")
@@ -656,13 +687,16 @@ local function main()
 	FpsPage.Create_Slider("Hitbox Size", 5, 150, 50, "HitboxSize")
 	FpsPage.Create_Description("Esp and Box Color")
 	local enemycharcolor = FpsPage.Create_InputText("255,0,0")
-	FpsPage.Create_ButtonInput("Auto Spin", "AutoSpin")
+	FpsPage.Create_ButtonInput("Char Spin", "AutoSpin")
 	FpsPage.Create_Slider("Auto Spin Speed", 1, 500, 50, "AutoSpinSpeed")
 	
 	MiscPage.Create_Description("BackgroudColor")
 	local BgColorInput = MiscPage.Create_InputText("15,15,15")
-	MiscPage.Create_Slider("Backgroud Transparency", 20, 70, 50, "BackTransparancy")
+	MiscPage.Create_Slider("Backgroud Transparency", 0, 70, 50, "BackTransparancy")
+	MiscPage.Create_ButtonInput("PauseScript")
 	local SaveDatabtn = MiscPage.Create_OneShotbtn("Save Data")
+	local LoadingDatabtn = MiscPage.Create_OneShotbtn("Load Data")
+	MiscPage.Create_Slider("Save data delay (s)", 30, 300, 90, "Savedatadelay")
 	
 	local PlayersListPage = TpPlayersListPage(Hub, Player_name)
 	
@@ -670,11 +704,18 @@ local function main()
 	FovFrame.AnchorPoint = Vector2.new(0.5,0.5)
 	FovFrame.ZIndex = -2
 	
+	local CrossHair = Gui.CreateUiFrame(Hub.Objs.Screngui, UDim2.fromScale(0.5,0.5),UDim2.fromOffset(15,15))
+	CrossHair.AnchorPoint = Vector2.new(0.5,0.5)
+	CrossHair.BackgroundTransparency = 0
+	
 	Gui.CreateUiStroke(FovFrame, 0.05)
 	Gui.CreateUiBorder(FovFrame, UDim.new(1,0))
+	Gui.CreateUiBorder(CrossHair, UDim.new(1,0))
 
 	-- Loop 1: RenderStepped (Para físicas e updates por frame: Speed, NoClip, Fly)
 	RunService.RenderStepped:Connect(function(dt)
+		if Global.bools.PauseScript then return end
+		
 		local trys = 0
 
 		-- Leitura dinâmica da cor inserida no InputText (ex: "255,0,0")
@@ -704,6 +745,16 @@ local function main()
 		else
 			FovFrame.Visible = false
 		end
+		
+		if Global.bools.CrossHair  then
+			CrossHair.Visible = true
+		else
+			CrossHair.Visible = false
+		end
+		
+		if Global.bools.CameraFov then
+			Camera.FieldOfView = Global.values.CameraFov or 70
+		end
 
 		-- NOCLIP
 		if Global.bools.NoClip and LocalPlayer.Character then
@@ -722,9 +773,15 @@ local function main()
 			else
 				Humanoid.WalkSpeed = 16
 			end
+			
+			if Global.bools.JumpForce then
+				Humanoid.JumpPower = Global.values.JumpForce
+			else
+				Humanoid.JumpPower = 50
+			end
 
-			if Global.bools.InfJump then
-				Humanoid.JumpPower = Global.values.JumpPower or 50
+			if Global.bools.JumpForce then
+				Humanoid.JumpPower = Global.values.JumpForce or 50
 			else
 				Humanoid.JumpPower = 50
 			end
@@ -733,6 +790,16 @@ local function main()
 		-- Spin
 		if Global.bools.AutoSpin and LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart") then
 			RootPart.CFrame *= CFrame.Angles(0, math.rad(Global.values.AutoSpinSpeed), 0)
+		end
+		
+		-- FLING (Para fins educativos de física aplicada no Client)
+		if Global.bools.Fling and LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart") then
+			local root = LocalPlayer.Character.HumanoidRootPart
+			local vel = root.AssemblyLinearVelocity
+
+			-- Aplica uma rotação massiva e velocidade para gerar impulso de colisão
+			root.AssemblyLinearVelocity = Vector3.new(9e9, 9e9, 9e9)
+			root.AssemblyAngularVelocity = Vector3.new(9e9, 9e9, 9e9)
 		end
 
 		-- EXPANSIVE HITBOX & ESP
@@ -806,21 +873,33 @@ local function main()
 				end
 			end
 		end
-		
-		local CustomColorBackgroud = Color3.new(15,15,15)
+
+		customColor = Color3.new(15,15,15)
 		if BgColorInput and BgColorInput.Text then
 			local r, g, b = BgColorInput.Text:match("(%d+)%s*,%s*(%d+)%s*,%s*(%d+)")
 			if r and g and b then
-				CustomColorBackgroud = Color3.fromRGB(tonumber(r), tonumber(g), tonumber(b))
+				customColor = Color3.fromRGB(tonumber(r), tonumber(g), tonumber(b))
 			end
 		end
-
-		Hub.Objs.Window.BackgroundColor3 = CustomColorBackgroud
+	
+		Hub.Objs.Window.BackgroundColor3 = customColor or Color3.fromRGB(15,15,15)
 		Hub.Objs.Window.BackgroundTransparency = Global.values.BackTransparancy / 100
+		
+		customColor = Color3.new(0,155,0)
+		if CrossHairColor and CrossHairColor.Text then
+			local r, g, b = CrossHairColor.Text:match("(%d+)%s*,%s*(%d+)%s*,%s*(%d+)")
+			if r and g and b then
+				customColor = Color3.fromRGB(tonumber(r), tonumber(g), tonumber(b))
+			end
+		end
+		
+		CrossHair.BackgroundColor3 = customColor or Color3.fromRGB(0,155,0)
 	end)
 	
 	-- Loop 2: Heartbeat (Para lógica de tempo: Esp, Aimbot, Auto Spin)
 	RunService.Heartbeat:Connect(function()
+		if Global.bools.PauseScript then return end
+		
 		local char, Humanoid, RootPart = Actions.GetChar()
 		
 		if Global.bools.Fly then
@@ -870,14 +949,14 @@ local function main()
 			Hub.Actions.update_visible()
 		end
 		
-		if input.KeyCode == Enum.KeyCode.K then
-			PlayersListPage.Frame.Visible = not PlayersListPage.Frame.Visible
+		if input.KeyCode ~= Enum.UserInputType.MouseMovement then
+			PlayersListPage.Frame.Visible = false
 		end
 	end)
 	
 	UserInputService.JumpRequest:Connect(function()
 		local char, Humanoid = Actions.GetChar()
-		if Global.bools.InfJump and char and Humanoid then
+		if Global.bools.InfJump and char and Humanoid and not Global.bools.PauseScript then
 			Humanoid:ChangeState(Enum.HumanoidStateType.Jumping)
 		end
 	end)
@@ -992,20 +1071,28 @@ local function main()
 		end)
 	end
 	
+	LoadConfig()
+	
 	if SaveDatabtn and SaveDatabtn.Activated then
 		SaveDatabtn.Activated:Connect(function()
 			SaveConfig()
 		end)
 	end
 	
+	if LoadingDatabtn and LoadingDatabtn.Activated then
+		LoadingDatabtn.Activated:Connect(function()
+			LoadConfig()
+		end)
+	end
+	
 	task.spawn(function()
 		while true do
 			SaveConfig()
-			task.wait(90)
+			task.wait(Global.values.Savedatadelay or 90)
 		end
 	end)
 end
 
-if not game.Players.LocalPlayer.PlayerGui:FindFirstChild("Dimitrof04ScriptRenew") then
+if not game.Players.LocalPlayer.PlayerGui:FindFirstChild(Name) then
 	main()
 end
