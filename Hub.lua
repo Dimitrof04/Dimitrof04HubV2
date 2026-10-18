@@ -333,14 +333,17 @@ local function CreateScrengui()
 	
 	local Screngui
 	
-	if Name == "Main" then
-		Screngui = LocalPlayer.PlayerGui:FindFirstChild(Name)
+	local Screngui -- Declare a variável localmente aqui
+
+	if playerGui:FindFirstChild("Main") then
+		Screngui = LocalPlayer.PlayerGui:FindFirstChild("Main")
 	else
-		Screngui = Instance.new("ScreenGui",game.Players.LocalPlayer.PlayerGui)
+		Screngui = Instance.new("ScreenGui")
 		Screngui.IgnoreGuiInset = true
 		Screngui.ResetOnSpawn = false
-		Screngui.Name = Name
+		Screngui.Name = "Dimitrof04" -- Padronizado para bater com suas checagens anteriores
 		Screngui.DisplayOrder = 9
+		Screngui.Parent = LocalPlayer.PlayerGui -- Boa prática: definir o Parent por último
 	end
 	
 	local mainbtn = Instance.new("ImageButton",Screngui)
