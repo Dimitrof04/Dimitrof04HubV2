@@ -11,8 +11,9 @@ local TweenService = game:GetService("TweenService")
 local Workspace = game:GetService("Workspace")
 local LocalPlayer = Players.LocalPlayer
 local Camera = workspace.CurrentCamera
+local playerGui = LocalPlayer:WaitForChild("PlayerGui")
 
-local Name = "Dimitrof04"
+local SecondColorUie = {}
 
 -- [Gui Class]
 local function Guiclass()
@@ -24,6 +25,10 @@ local function Guiclass()
 		Uistrokebtntab.StrokeSizingMode = Enum.StrokeSizingMode.ScaledSize
 		Uistrokebtntab.LineJoinMode = Enum.LineJoinMode.Round
 		Uistrokebtntab.Parent = parent
+		
+		if not color then
+			table.insert(SecondColorUie, Uistrokebtntab)
+		end
 
 		return Uistrokebtntab
 	end
@@ -89,6 +94,8 @@ local function Guiclass()
 		Text.Parent = Parent
 		Text.Name = "TextLabel"
 		Text.Visible = true
+		
+		table.insert(SecondColorUie, Text)
 
 		return Text
 	end
@@ -112,6 +119,8 @@ local function Guiclass()
 		TextButton.Active = true 
 
 		TextButton.ZIndex = 10 
+		
+		table.insert(SecondColorUie, TextButton)
 
 		return TextButton
 	end
@@ -167,7 +176,7 @@ local Global = {
 		CameraFov = 70,
 		AimSmoothness = 0.2,
 		HitboxSize = 10,
-		Savedatadelay = 90
+		Savedatadelay = 90,
 	},
 	DragData = {
 		dragStartMini = nil,
@@ -222,15 +231,117 @@ local function LoadConfig()
 	end
 end
 
--- Carrega assim que o script iniciar
-LoadConfig()
+local function Actionsclass()
+	local function GetChar(playername)
+		local playerObj = playername and Players:FindFirstChild(playername) or Players.LocalPlayer
+		if not playerObj then return false end
+
+		-- O Character é uma propriedade do Player, não um filho direto via WaitForChild
+		local char = playerObj.Character or playerObj.CharacterAdded:Wait(5)
+
+		if not char then
+			return false
+		end
+
+		local Humanoid = char:WaitForChild("Humanoid", 5)
+		local RootPart = char:WaitForChild("HumanoidRootPart", 5)
+
+		if not Humanoid or not RootPart then
+			return false
+		end
+
+		return char, Humanoid, RootPart
+	end
+
+	local function GetClosestPlayer()
+		local closestPlayer = nil
+		local shortestDistance = math.huge
+		local mouseLocation = UserInputService:GetMouseLocation()
+
+		for _, player in ipairs(Players:GetPlayers()) do
+			if player ~= LocalPlayer and player.Character and player.Character:FindFirstChild("Head") then
+				local humanoid = player.Character:FindFirstChildOfClass("Humanoid")
+				if humanoid and humanoid.Health > 0 then
+					local head = player.Character.Head
+					local screenPoint, onScreen = Camera:WorldToViewportPoint(head.Position)
+
+					if onScreen then
+						local screenPos = Vector2.new(screenPoint.X, screenPoint.Y)
+						local distance = (screenPos - mouseLocation).Magnitude
+
+						-- O raio máximo é o valor do Fov definido na tabela Global
+						local maxFov = Global.values.Fov or 100
+
+						if distance < shortestDistance and distance <= maxFov then
+							shortestDistance = distance
+							closestPlayer = player
+						end
+					end
+				end
+			end
+		end
+
+		return closestPlayer
+	end
+
+	local function GetPlayerThumbnail(userId, thumbnailType, thumbnailSize)
+		local type = thumbnailType or Enum.ThumbnailType.HeadShot
+		local size = thumbnailSize or Enum.ThumbnailSize.Size420x420
+
+		local success, content = pcall(function()
+			return Players:GetUserThumbnailAsync(userId, type, size)
+		end)
+
+		if success then
+			return content -- Retorna a URL (string) da imagem
+		else
+			warn("Erro ao buscar a imagem do player:", content)
+			return false
+		end
+	end
+
+	local function SpectatePlayer(targetChar)
+		if targetChar then
+			local humanoid = targetChar:FindFirstChildOfClass("Humanoid")
+			if humanoid then
+				Camera.CameraSubject = humanoid -- O Humanoid garante que a câmera siga perfeitamente
+			end
+		end
+	end
+
+	local function UnSpectate()
+		local _, localHumanoid = GetChar()
+		if localHumanoid then
+			Camera.CameraSubject = localHumanoid
+		end
+	end
+
+	return {
+		GetChar = GetChar,
+		GetClosestPlayer = GetClosestPlayer,
+		GetPlayerThumbnail = GetPlayerThumbnail,
+		SpectatePlayer = SpectatePlayer,
+		UnSpectate = UnSpectate,
+	}
+end
+
+local Actions = Actionsclass()
+
 
 local function CreateScrengui()	
-	local Screngui = Instance.new("ScreenGui",game.Players.LocalPlayer.PlayerGui)
-	Screngui.IgnoreGuiInset = true
-	Screngui.ResetOnSpawn = false
-	Screngui.Name = Name
-	Screngui.DisplayOrder = 9
+	local padding = 10
+	
+	local Screngui
+	
+	if Name == "Main" then
+		Screngui = LocalPlayer.PlayerGui:FindFirstChild(Name)
+	else
+		Screngui = Instance.new("ScreenGui",game.Players.LocalPlayer.PlayerGui)
+		Screngui.IgnoreGuiInset = true
+		Screngui.ResetOnSpawn = false
+		Screngui.Name = Name
+		Screngui.DisplayOrder = 9
+	end
 	
 	local mainbtn = Instance.new("ImageButton",Screngui)
 	mainbtn.Name = "MainButton"
@@ -246,15 +357,18 @@ local function CreateScrengui()
 	local Window = Gui.CreateUiFrame(Screngui, UDim2.fromScale(0.5,0.5), UDim2.fromScale(0.350, 0.450))
 	Window.AnchorPoint = Vector2.new(0.5,0.5)
 	Window.BackgroundTransparency = 0.5
-	Window.ZIndex = -1
+	Window.ZIndex = 10
 	Gui.CreateUiBorder(Window,UDim.new(0.05,0))
 	Gui.CreateUiStroke(Window, 0.01)
 	
 	local TopBar = Gui.CreateUiFrame(Window, UDim2.fromScale(0.02, 0), UDim2.fromScale(0.96, 0.09))
+	TopBar.ZIndex = 7
 	
 	local Title = Gui.CreateUiText("Dimitrof04 v2", TopBar, UDim2.fromScale(0, 0), UDim2.fromScale(1,1))
+	Title.ZIndex = 7
 	
 	local PageParent = Gui.CreateUiFrame(Window, UDim2.fromScale(0.318, 0.1), UDim2.fromScale(0.662, 0.88))
+	PageParent.ZIndex = 7
 	
 	local PagesList = Gui.CreateUiScroll(Window, UDim2.fromScale(0.018, 0.1), UDim2.fromScale(0.3,0.855))
 	Gui.CreateList(PagesList, Enum.VerticalAlignment.Top, Enum.HorizontalAlignment.Left, false, Enum.SortOrder.LayoutOrder, Enum.FillDirection.Vertical, UDim.new(0,5))
@@ -330,8 +444,7 @@ local function CreateScrengui()
 			local btn = Gui.CreateUiTextButton(text, Page, UDim2.new(0,0,0,0), UDim2.new(0.8, 0,0, 45))
 			btn.Font = Enum.Font.GothamMedium
 
-			local corner = Gui.CreateUiBorder(btn, UDim.new(0.1, 0))
-
+			Gui.CreateUiBorder(btn, UDim.new(0.1, 0))
 			Gui.CreateUiStroke(btn, 0.1)
 			
 			Page.CanvasSize += UDim2.new(0,0,0,50)
@@ -416,13 +529,44 @@ local function CreateScrengui()
 			Page.CanvasSize += UDim2.new(0,0,0,55)
 		end
 
-		-- Retorna a página e os construtores caso queira utilizá-los fora
+		local function CreateList(text)
+			local btnlist = Gui.CreateUiTextButton(text, Page, UDim2.new(0,0,0,0), UDim2.new(0.8, 0,0, 45))
+			btnlist.Font = Enum.Font.GothamMedium
+
+			Gui.CreateUiBorder(btnlist, UDim.new(0.1, 0))
+			Gui.CreateUiStroke(btnlist, 0.1)
+			
+			local Framelist = Gui.CreateUiScroll(Page, UDim2.new(0.5,0,1.1,0), UDim2.new(0.8, 0,0, 0), padding)
+			Framelist.AnchorPoint = Vector2.new(0.5,0)
+			
+			local function CrateOption(name, case)
+				if case == "Player" then
+					local Frame = Gui.CreateUiFrame(Framelist, UDim2.new(0,0,0,0), UDim2.new(1,0,0,30 + padding))
+					Frame.Name = name
+					
+					local Img = Actions.GetPlayerThumbnail(name)
+					
+					local btn = Instance.new("ImageButton")
+					btn.Size = UDim2.new(0.063, 0,0.111, 0)
+					btn.Position = UDim2.fromOffset(0,0)
+					btn.Image = Img
+					btn.Name = "Image"
+					btn.BackgroundTransparency = 1
+					btn.ZIndex = 6
+					btn.Parent = Frame
+				else
+					local btn = Gui.CreateUiTextButton(name, Framelist, UDim2.new(0,0,0,0), UDim2.new(0.8, 0,0, 45))
+				end
+			end
+		end
+
 		return {
 			Create_Description = CreateDescription,
 			Create_ButtonInput = CreateButtonInput,
 			Create_OneShotbtn = CreateOneButton,
 			Create_InputText = CreateInput,
-			Create_Slider = CreateSlider
+			Create_Slider = CreateSlider,
+			Create_List = CreateList
 		}
 	end
 	
@@ -466,102 +610,6 @@ local function CreateScrengui()
 		}
 	}
 end
-
-local function Actionsclass()
-	local function GetChar(playername)
-		local playerObj = playername and Players:FindFirstChild(playername) or Players.LocalPlayer
-		if not playerObj then return false end
-
-		-- O Character é uma propriedade do Player, não um filho direto via WaitForChild
-		local char = playerObj.Character or playerObj.CharacterAdded:Wait(5)
-
-		if not char then
-			return false
-		end
-
-		local Humanoid = char:WaitForChild("Humanoid", 5)
-		local RootPart = char:WaitForChild("HumanoidRootPart", 5)
-
-		if not Humanoid or not RootPart then
-			return false
-		end
-
-		return char, Humanoid, RootPart
-	end
-	
-	local function GetClosestPlayer()
-		local closestPlayer = nil
-		local shortestDistance = math.huge
-		local mouseLocation = UserInputService:GetMouseLocation()
-
-		for _, player in ipairs(Players:GetPlayers()) do
-			if player ~= LocalPlayer and player.Character and player.Character:FindFirstChild("Head") then
-				local humanoid = player.Character:FindFirstChildOfClass("Humanoid")
-				if humanoid and humanoid.Health > 0 then
-					local head = player.Character.Head
-					local screenPoint, onScreen = Camera:WorldToViewportPoint(head.Position)
-
-					if onScreen then
-						local screenPos = Vector2.new(screenPoint.X, screenPoint.Y)
-						local distance = (screenPos - mouseLocation).Magnitude
-
-						-- O raio máximo é o valor do Fov definido na tabela Global
-						local maxFov = Global.values.Fov or 100
-
-						if distance < shortestDistance and distance <= maxFov then
-							shortestDistance = distance
-							closestPlayer = player
-						end
-					end
-				end
-			end
-		end
-
-		return closestPlayer
-	end
-	
-	local function GetPlayerThumbnail(userId, thumbnailType, thumbnailSize)
-		local type = thumbnailType or Enum.ThumbnailType.HeadShot
-		local size = thumbnailSize or Enum.ThumbnailSize.Size420x420
-
-		local success, content = pcall(function()
-			return Players:GetUserThumbnailAsync(userId, type, size)
-		end)
-
-		if success then
-			return content -- Retorna a URL (string) da imagem
-		else
-			warn("Erro ao buscar a imagem do player:", content)
-			return false
-		end
-	end
-	
-	local function SpectatePlayer(targetChar)
-		if targetChar then
-			local humanoid = targetChar:FindFirstChildOfClass("Humanoid")
-			if humanoid then
-				Camera.CameraSubject = humanoid -- O Humanoid garante que a câmera siga perfeitamente
-			end
-		end
-	end
-
-	local function UnSpectate()
-		local _, localHumanoid = GetChar()
-		if localHumanoid then
-			Camera.CameraSubject = localHumanoid
-		end
-	end
-	
-	return {
-		GetChar = GetChar,
-		GetClosestPlayer = GetClosestPlayer,
-		GetPlayerThumbnail = GetPlayerThumbnail,
-		SpectatePlayer = SpectatePlayer,
-		UnSpectate = UnSpectate,
-	}
-end
-
-local Actions = Actionsclass()
 
 local function TpPlayersListPage(Hub, Textbox)
 	local Gui = Guiclass()
@@ -690,6 +738,8 @@ local function main()
 	FpsPage.Create_ButtonInput("Char Spin", "AutoSpin")
 	FpsPage.Create_Slider("Auto Spin Speed", 1, 500, 50, "AutoSpinSpeed")
 	
+	MiscPage.Create_Description("UielementColor")
+	local Uielementcolor = MiscPage.Create_InputText("255,255,255")
 	MiscPage.Create_Description("BackgroudColor")
 	local BgColorInput = MiscPage.Create_InputText("15,15,15")
 	MiscPage.Create_Slider("Backgroud Transparency", 0, 70, 50, "BackTransparancy")
@@ -707,18 +757,17 @@ local function main()
 	local CrossHair = Gui.CreateUiFrame(Hub.Objs.Screngui, UDim2.fromScale(0.5,0.5),UDim2.fromOffset(15,15))
 	CrossHair.AnchorPoint = Vector2.new(0.5,0.5)
 	CrossHair.BackgroundTransparency = 0
+	CrossHair.ZIndex = -2
 	
-	Gui.CreateUiStroke(FovFrame, 0.05)
+	local FovStroke = Gui.CreateUiStroke(FovFrame, 0.05, CrossHair.BorderColor3)
 	Gui.CreateUiBorder(FovFrame, UDim.new(1,0))
 	Gui.CreateUiBorder(CrossHair, UDim.new(1,0))
+	
+	local lastcolor = Color3.new(255,255,255)
 
-	-- Loop 1: RenderStepped (Para físicas e updates por frame: Speed, NoClip, Fly)
 	RunService.RenderStepped:Connect(function(dt)
 		if Global.bools.PauseScript then return end
 		
-		local trys = 0
-
-		-- Leitura dinâmica da cor inserida no InputText (ex: "255,0,0")
 		local customColor = Color3.new(1, 0, 0)
 		if enemycharcolor and enemycharcolor.Text then
 			local r, g, b = enemycharcolor.Text:match("(%d+)%s*,%s*(%d+)%s*,%s*(%d+)")
@@ -807,10 +856,6 @@ local function main()
 			local pchar, phumanoid, prootpath = Actions.GetChar(p.Name)
 
 			if not pchar then
-				trys += 1
-				if trys >= 3 then
-					break
-				end
 				continue 
 			end
 
@@ -874,7 +919,7 @@ local function main()
 			end
 		end
 
-		customColor = Color3.new(15,15,15)
+		customColor = Color3.new(0,0,0)
 		if BgColorInput and BgColorInput.Text then
 			local r, g, b = BgColorInput.Text:match("(%d+)%s*,%s*(%d+)%s*,%s*(%d+)")
 			if r and g and b then
@@ -885,7 +930,7 @@ local function main()
 		Hub.Objs.Window.BackgroundColor3 = customColor or Color3.fromRGB(15,15,15)
 		Hub.Objs.Window.BackgroundTransparency = Global.values.BackTransparancy / 100
 		
-		customColor = Color3.new(0,155,0)
+		customColor = Color3.new(0,1,0)
 		if CrossHairColor and CrossHairColor.Text then
 			local r, g, b = CrossHairColor.Text:match("(%d+)%s*,%s*(%d+)%s*,%s*(%d+)")
 			if r and g and b then
@@ -894,6 +939,30 @@ local function main()
 		end
 		
 		CrossHair.BackgroundColor3 = customColor or Color3.fromRGB(0,155,0)
+		FovStroke.Color = customColor or Color3.fromRGB(0,155,0)
+		
+		customColor = Color3.new(255,255,255)
+		if Uielementcolor and Uielementcolor.Text then
+			local r, g, b = Uielementcolor.Text:match("(%d+)%s*,%s*(%d+)%s*,%s*(%d+)")
+			if r and g and b then
+				customColor = Color3.fromRGB(tonumber(r), tonumber(g), tonumber(b))
+			end
+		end
+		
+		if customColor ~= lastcolor then
+			lastcolor = customColor
+			for _, Uie in pairs(SecondColorUie) do
+				if typeof(Uie) == "Instance" then
+					if Uie:IsA("UIStroke") then
+						Uie.Color = customColor
+					elseif Uie:IsA("TextButton") or Uie:IsA("TextLabel") then
+						Uie.TextColor3 = customColor
+					elseif Uie:IsA("Frame") then
+						Uie.BackgroundColor3 = customColor
+					end
+				end
+			end
+		end
 	end)
 	
 	-- Loop 2: Heartbeat (Para lógica de tempo: Esp, Aimbot, Auto Spin)
@@ -1093,6 +1162,6 @@ local function main()
 	end)
 end
 
-if not game.Players.LocalPlayer.PlayerGui:FindFirstChild(Name) then
+if playerGui:FindFirstChild("Main") or not playerGui:FindFirstChild("Dimitrof04") then
 	main()
 end
